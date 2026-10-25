@@ -1,5 +1,5 @@
-PS101 Fall 2026 materials
+# PS101 Fall 2026 materials
 
-Syllabus (pdf).
-
-The Counting Room simulation.
+- [Syllabus (pdf)](PS%20101%20syllabus.pdf)
+- [The Counting Room simulation](counting_room.html)
+  
