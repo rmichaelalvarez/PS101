@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Risk-Limiting Audit Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="author" content="R. Michael Alvarez, California Institute of Technology; drafted with Claude Opus 5.5 (claude-opus-5-5), 2026-11-09">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: a single column "lab worksheet" — settings, live audit, batch of audits, planning curve, exercises. */
+:root {
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --ink: #17202b;
+  --muted: #5a6573;
+  --line: #d9dee5;
+  --accent: #23466e;          /* tally-sheet ink blue */
+  --a: #1f7a6d;               /* Candidate A: reported winner */
+  --b: #b8681c;               /* Candidate B */
+  --a-soft: #dcefeb;
+  --b-soft: #f6e6d4;
+  --good: #2d7a3a;
+  --warn: #a33a2c;
+  --hl: #fff3c4;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", Arial, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111720; --surface: #18202b; --ink: #e7ecf2; --muted: #9aa6b4; --line: #2c3746;
+    --accent: #8fb3dd; --a: #4fbfae; --b: #e3a058; --a-soft: #1b3a36; --b-soft: #3d2c1a;
+    --good: #6cc27a; --warn: #f08a7a; --hl: #3a3420; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111720; --surface: #18202b; --ink: #e7ecf2; --muted: #9aa6b4; --line: #2c3746;
+  --accent: #8fb3dd; --a: #4fbfae; --b: #e3a058; --a-soft: #1b3a36; --b-soft: #3d2c1a;
+  --good: #6cc27a; --warn: #f08a7a; --hl: #3a3420; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 56px;
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: 0.01em; }
+h1 { font-size: clamp(2rem, 5vw, 2.9rem); line-height: 1.05; }
+h2 { font-size: 1.55rem; }
+h3 { font-size: 1.1rem; }
+p { margin: 0; }
+.lede { max-width: 68ch; color: var(--muted); font-size: 1.05rem; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+header { display: flex; flex-direction: column; gap: 10px; }
+.section { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 22px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.section-head { display: flex; flex-direction: column; gap: 4px; }
+.section-head p { color: var(--muted); max-width: 72ch; }
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; padding: 0; margin: 0; list-style: none; counter-reset: s; }
+.steps li { counter-increment: s; display: flex; gap: 10px; align-items: flex-start; min-width: 0; }
+.steps li::before { content: counter(s); font-family: var(--font-mono); font-weight: 600; color: var(--accent); border: 1.5px solid var(--accent); border-radius: 50%; width: 26px; height: 26px; flex: none; display: grid; place-items: center; font-size: 0.85rem; }
+
+/* controls */
+.controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px 22px; }
+.ctl { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ctl label { font-weight: 600; font-size: 0.95rem; }
+.ctl .val { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 600; }
+.ctl .hint { color: var(--muted); font-size: 0.84rem; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+select { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+button { font: inherit; font-weight: 600; border-radius: 6px; padding: 8px 14px; cursor: pointer; border: 1.5px solid var(--accent); background: var(--accent); color: var(--surface); }
+button.ghost { background: transparent; color: var(--accent); }
+button:disabled { opacity: 0.5; cursor: default; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid var(--hl); outline-offset: 2px; }
+.truth { font-size: 0.9rem; padding: 8px 12px; border-radius: 6px; background: var(--a-soft); }
+.truth.wrong { background: var(--b-soft); }
+
+/* live audit */
+.live { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 20px; }
+@media (max-width: 760px) { .live { grid-template-columns: 1fr; } }
+.tally { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.stat { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stat .k { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.stat .v { font-family: var(--font-mono); font-size: 1.35rem; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.stat.a .v { color: var(--a); } .stat.b .v { color: var(--b); }
+.tray { display: grid; grid-template-columns: repeat(20, 1fr); gap: 3px; }
+.tray span { aspect-ratio: 3 / 4; border-radius: 2px; background: var(--line); display: grid; place-items: center; font-family: var(--font-mono); font-size: 0.6rem; color: var(--surface); font-weight: 600; }
+.tray span.A { background: var(--a); } .tray span.B { background: var(--b); }
+.verdict { font-weight: 600; padding: 10px 12px; border-radius: 8px; border: 1.5px solid var(--line); }
+.verdict.ok { border-color: var(--good); color: var(--good); }
+.verdict.bad { border-color: var(--warn); color: var(--warn); }
+.verdict.full { border-color: var(--accent); color: var(--accent); }
+canvas { width: 100%; display: block; }
+.chartbox { border: 1px solid var(--line); border-radius: 8px; padding: 8px; min-width: 0; }
+.caption { color: var(--muted); font-size: 0.84rem; }
+
+/* batch */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.progress { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.progress > div { height: 100%; width: 0; background: var(--accent); transition: width 0.15s; }
+.check { font-weight: 600; }
+.check.ok { color: var(--good); } .check.bad { color: var(--warn); }
+
+/* exercises */
+.ex { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 0; list-style: none; counter-reset: e; }
+.ex li { counter-increment: e; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; }
+.ex li::before { content: counter(e); font-family: var(--font-display); font-size: 1.4rem; color: var(--accent); line-height: 1.2; }
+.ex .try { font-family: var(--font-mono); font-size: 0.85rem; color: var(--muted); }
+.ex button { padding: 4px 10px; font-size: 0.85rem; margin-top: 4px; }
+details summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: 0.9rem; }
+details p { margin-top: 6px; color: var(--muted); font-size: 0.92rem; }
+.mono { font-family: var(--font-mono); }
+footer { color: var(--muted); font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px; }
+@media (prefers-reduced-motion: reduce) { .progress > div { transition: none; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">Recounts &amp; audits · interactive lab</div>
+  <h1>Risk-Limiting Audit Lab</h1>
+  <p class="lede">A risk-limiting audit checks a reported election outcome by hand-inspecting a random sample of paper ballots. It keeps sampling until the evidence that the reported winner really won is strong enough, or it escalates to a full hand count. Change the settings below and watch how the margin, the number of ballots and the risk limit drive the work an audit takes.</p>
+</header>
+
+<section class="section" aria-labelledby="how">
+  <div class="section-head">
+    <h2 id="how">How a ballot-polling audit works</h2>
+    <p>This lab uses BRAVO, the standard ballot-polling method (Lindeman, Stark &amp; Yates, 2012), for a two-candidate contest.</p>
+  </div>
+  <ol class="steps">
+    <li><span>Start with the <b>reported</b> results: Candidate A won with share <i>s</i> of the votes.</span></li>
+    <li><span>Draw a paper ballot at random and read it by hand. A vote for A multiplies the test statistic <i>T</i> by 2<i>s</i>; a vote for B multiplies it by 2(1−<i>s</i>).</span></li>
+    <li><span>If <i>T</i> reaches 1/α (α is the <b>risk limit</b>), stop: the outcome is <b>confirmed</b>.</span></li>
+    <li><span>If the sample gets too large first, <b>escalate to a full hand count</b>, which finds the right winner.</span></li>
+  </ol>
+  <p class="caption">The risk limit α is the largest chance that the audit confirms a wrong outcome. With α = 5%, a wrong outcome gets past the audit at most 5% of the time.</p>
+</section>
+
+<section class="section" aria-labelledby="settings">
+  <div class="section-head">
+    <h2 id="settings">Settings</h2>
+    <p>The reported results are what election officials announced. The true results are what is actually on the paper ballots. The audit sees only the paper.</p>
+  </div>
+  <div class="controls">
+    <div class="ctl">
+      <label for="margin">Reported margin <span class="val" id="marginV"></span></label>
+      <input type="range" id="margin" min="0" max="37" step="1" value="23">
+      <span class="hint" id="marginH"></span>
+    </div>
+    <div class="ctl">
+      <label for="nlog">Ballots cast <span class="val" id="nV"></span></label>
+      <input type="range" id="nlog" min="3" max="7" step="0.5" value="5">
+      <span class="hint">From a small town (1,000) to a large state (10 million).</span>
+    </div>
+    <div class="ctl">
+      <label for="alpha">Risk limit α <span class="val" id="alphaV"></span></label>
+      <select id="alpha">
+        <option value="0.01">1%</option>
+        <option value="0.05" selected>5%</option>
+        <option value="0.10">10%</option>
+        <option value="0.20">20%</option>
+      </select>
+      <span class="hint" id="alphaH"></span>
+    </div>
+    <div class="ctl">
+      <label for="truem">True margin on the paper <span class="val" id="truemV"></span></label>
+      <input type="range" id="truem" min="-10" max="40" step="0.1" value="10">
+      <div class="row">
+        <button class="ghost" id="matchBtn" type="button">Match the report</button>
+        <button class="ghost" id="wrongBtn" type="button">Make the report wrong</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <label for="cap">Escalate to a full hand count after</label>
+      <select id="cap"></select>
+      <span class="hint">States set a point where sampling stops and everything is counted by hand.</span>
+    </div>
+  </div>
+  <p class="truth" id="truth" role="status"></p>
+</section>
+
+<section class="section" aria-labelledby="one">
+  <div class="section-head">
+    <h2 id="one">Run one audit</h2>
+    <p>Each square is a ballot pulled from the box and read by hand. The chart tracks the test statistic <i>T</i> on a log scale; the audit stops when it crosses the dashed line at 1/α.</p>
+  </div>
+  <div class="row">
+    <button id="runOne" type="button">Draw ballots</button>
+    <button class="ghost" id="stepOne" type="button">Draw one ballot</button>
+    <button class="ghost" id="resetOne" type="button">Reset</button>
+    <label for="speed" class="caption">Speed</label>
+    <select id="speed">
+      <option value="1">Slow</option>
+      <option value="8" selected>Medium</option>
+      <option value="200">Fast</option>
+      <option value="0">Instant</option>
+    </select>
+  </div>
+  <div class="live">
+    <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+      <div class="tally">
+        <div class="stat"><span class="k">Ballots drawn</span><span class="v" id="sDrawn">0</span></div>
+        <div class="stat"><span class="k">Share of all ballots</span><span class="v" id="sPct">0%</span></div>
+        <div class="stat a"><span class="k">For A (reported winner)</span><span class="v" id="sA">0</span></div>
+        <div class="stat b"><span class="k">For B</span><span class="v" id="sB">0</span></div>
+        <div class="stat"><span class="k">Test statistic T</span><span class="v" id="sT">1</span></div>
+        <div class="stat"><span class="k">Needed: 1/α</span><span class="v" id="sGoal">20</span></div>
+      </div>
+      <div>
+        <div class="caption" style="margin-bottom:6px">Last 100 ballots drawn</div>
+        <div class="tray" id="tray" aria-label="Most recent ballots drawn"></div>
+      </div>
+      <div class="verdict" id="verdict">Press <b>Draw ballots</b> to start the audit.</div>
+    </div>
+    <div class="chartbox"><canvas id="tChart" height="320" aria-label="Test statistic over ballots drawn"></canvas></div>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="many">
+  <div class="section-head">
+    <h2 id="many">Run 1,000 audits</h2>
+    <p>One audit is luck of the draw. Running many shows the typical sample size, how much it varies, and how often each kind of ending happens.</p>
+  </div>
+  <div class="row">
+    <button id="runMany" type="button">Run 1,000 audits</button>
+    <span class="caption" id="manyNote"></span>
+  </div>
+  <div class="progress" aria-hidden="true"><div id="prog"></div></div>
+  <div class="cards">
+    <div class="stat"><span class="k">Confirmed by sampling</span><span class="v" id="mConf">–</span></div>
+    <div class="stat"><span class="k">Went to full hand count</span><span class="v" id="mFull">–</span></div>
+    <div class="stat"><span class="k">Median ballots sampled</span><span class="v" id="mMed">–</span></div>
+    <div class="stat"><span class="k">90th percentile</span><span class="v" id="m90">–</span></div>
+  </div>
+  <p class="check" id="mCheck" role="status"></p>
+  <div class="chartbox"><canvas id="hChart" height="260" aria-label="Distribution of ballots sampled across audits"></canvas></div>
+  <p class="caption">Bars show how many audits stopped at each sample size (log scale). The last bar, if present, counts audits that escalated to a full hand count.</p>
+</section>
+
+<section class="section" aria-labelledby="plan">
+  <div class="section-head">
+    <h2 id="plan">Planning: expected sample size</h2>
+    <p>Before an audit, officials estimate the work. For BRAVO, the expected number of ballots depends on the margin and the risk limit, and hardly at all on how many ballots were cast. The dot marks the current setting.</p>
+  </div>
+  <div class="chartbox"><canvas id="pChart" height="300" aria-label="Expected ballots needed by reported margin"></canvas></div>
+  <p class="caption" id="planNote"></p>
+</section>
+
+<section class="section" aria-labelledby="exercises">
+  <div class="section-head">
+    <h2 id="exercises">Exercises</h2>
+    <p>Use the buttons to load each setup, then run the audits. Write down what you see before opening the discussion note.</p>
+  </div>
+  <ol class="ex">
+    <li><div>
+      <b>The risk limit.</b> With a 10-point margin and 100,000 ballots, run 1,000 audits at α = 20%, 10%, 5% and 1%. How does the median sample size change? Why does a stricter risk limit cost more ballots?
+      <div><button class="ghost" type="button" data-preset="1">Load setup</button></div>
+      <details><summary>Discussion</summary><p>The audit stops when T reaches 1/α, so a stricter limit raises the bar from 5 to 100. Because each ballot moves T by a small multiplicative step, the sample grows with log(1/α): going from 10% to 1% roughly doubles the work, not tenfold.</p></details>
+    </div></li>
+    <li><div>
+      <b>Closeness.</b> Keep α = 5%. Compare margins of 20, 10, 5 and 2 points. What happens to the sample each time the margin is cut in half?
+      <div><button class="ghost" type="button" data-preset="2">Load setup</button></div>
+      <details><summary>Discussion</summary><p>Halving the margin roughly quadruples the expected sample. Each ballot carries less evidence when the race is close, so very close races need very large samples, and many escalate to a full hand count. That is one reason close races often go to recounts.</p></details>
+    </div></li>
+    <li><div>
+      <b>Number of ballots.</b> With a 5-point margin and α = 5%, compare 10,000 ballots with 10,000,000. Does the number of ballots sampled change much? What does change?
+      <div><button class="ghost" type="button" data-preset="3">Load setup</button></div>
+      <details><summary>Discussion</summary><p>The sample needed is about the same (a few thousand ballots) whether 10,000 or 10 million were cast, just as a poll of 1,000 people works for a city or a country. What changes is the share: a few thousand ballots is a big slice of a small county and a tiny slice of a large state. Audits are cheap for big contests and comparatively expensive for small ones.</p></details>
+    </div></li>
+    <li><div>
+      <b>A wrong outcome.</b> Make the report wrong: officials announced A won by 4 points, but B actually won by 1. Run 1,000 audits at α = 10%, then at α = 5%. How often does the audit confirm the wrong winner?
+      <div><button class="ghost" type="button" data-preset="4">Load setup</button></div>
+      <details><summary>Discussion</summary><p>The audit should wrongly confirm at most α of the time, and usually far less. Almost every audit escalates to a full hand count, which corrects the outcome. This is the guarantee that gives the method its name: the risk of certifying a wrong winner is limited to α.</p></details>
+    </div></li>
+    <li><div>
+      <b>Right winner, smaller margin.</b> The report says A won by 10 points, but the paper shows A won by only 4 (for example, a tabulation error). The outcome is still right. How does the audit behave compared with exercise 2?
+      <div><button class="ghost" type="button" data-preset="5">Load setup</button></div>
+      <details><summary>Discussion</summary><p>The audit still confirms the right winner, but it needs more ballots than the reported margin would suggest, and some audits escalate. Ballot-polling audits are tuned to the reported margin; when the paper disagrees with the report, the evidence piles up more slowly.</p></details>
+    </div></li>
+    <li><div>
+      <b>Very close.</b> Set a 0.5-point margin with 1,000,000 ballots and α = 5%. Look at the planning chart and run a few single audits. What would you recommend to an election official?
+      <div><button class="ghost" type="button" data-preset="6">Load setup</button></div>
+      <details><summary>Discussion</summary><p>The expected sample is on the order of a hundred thousand ballots, and many audits escalate anyway. For margins this small, a full hand count (a recount) may be simpler. Ballot-comparison audits, which check each sampled paper ballot against its cast vote record, need far fewer ballots and are the usual answer for close contests.</p></details>
+    </div></li>
+  </ol>
+</section>
+
+<footer>
+  <p>Method: BRAVO ballot-polling audit (Lindeman, Stark &amp; Yates, “BRAVO: Ballot-polling Risk-limiting Audits to Verify Outcomes,” EVT/WOTE 2012), two candidates, ballots drawn without replacement. Expected sample sizes on the planning chart use the standard approximation ln(1/α) ÷ [s·ln(2s) + (1−s)·ln(2(1−s))].</p>
+  <p>Prepared for a course on elections at the California Institute of Technology by R. Michael Alvarez. Drafted with Claude Opus 5.5.</p>
+</footer>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const fmt = (x) => Math.round(x).toLocaleString("en-US");
+  const pct = (x, d = 1) => (100 * x).toFixed(d) + "%";
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+  // margin slider: 0..100 mapped nonlinearly to 0.2..40 points so small margins get room
+  const MARGINS = [0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1,1.25,1.5,1.75,2,2.5,3,3.5,4,4.5,5,6,7,8,9,10,11,12,13,14,15,16,18,20,22,25,28,30,35,40];
+  const marginFromSlider = () => MARGINS[+$("margin").value];
+  function sliderFromMargin(m) { let best = 0; MARGINS.forEach((v, i) => { if (Math.abs(v - m) < Math.abs(MARGINS[best] - m)) best = i; }); return best; }
+
+  const state = { reportedMargin: 10, N: 100000, alpha: 0.05, trueMargin: 10, cap: 25000 };
+
+  function capOptions() {
+    const sel = $("cap"); const prev = +sel.value || state.cap;
+    const opts = [1000, 5000, 25000, 100000].filter((c) => c < state.N);
+    sel.innerHTML = "";
+    opts.forEach((c) => sel.add(new Option(fmt(c) + " ballots", c)));
+    if (state.N <= 100000) sel.add(new Option("all " + fmt(state.N) + " ballots", state.N));
+    const vals = [...sel.options].map((o) => +o.value);
+    sel.value = vals.includes(prev) ? prev : vals.includes(25000) ? 25000 : vals[vals.length - 1];
+    state.cap = +sel.value;
+  }
+
+  function read() {
+    state.reportedMargin = marginFromSlider();
+    state.N = Math.round(Math.pow(10, +$("nlog").value) / 100) * 100;
+    state.alpha = +$("alpha").value;
+    state.trueMargin = +$("truem").value;
+    capOptions();
+    render();
+  }
+
+  function render() {
+    const s = 0.5 + state.reportedMargin / 200;
+    $("marginV").textContent = state.reportedMargin.toFixed(1) + " pts";
+    $("marginH").textContent = `A ${pct(s)} – B ${pct(1 - s)} (reported)`;
+    $("nV").textContent = fmt(state.N);
+    $("alphaV").textContent = pct(state.alpha, 0);
+    $("alphaH").textContent = `Stop when T reaches 1/α = ${fmt(1 / state.alpha)}.`;
+    const tm = state.trueMargin;
+    $("truemV").textContent = (tm >= 0 ? "A +" : "B +") + Math.abs(tm).toFixed(1) + " pts";
+    const truth = $("truth");
+    if (tm > 0) {
+      truth.className = "truth";
+      truth.textContent = Math.abs(tm - state.reportedMargin) < 0.05
+        ? `The paper ballots match the report: A really won, by ${tm.toFixed(1)} points.`
+        : `The reported winner is right, but the paper shows a different margin: A won by ${tm.toFixed(1)} points, not ${state.reportedMargin.toFixed(1)}.`;
+    } else {
+      truth.className = "truth wrong";
+      truth.textContent = tm === 0
+        ? "The paper ballots show an exact tie. The reported outcome (A wins) is not supported."
+        : `The reported outcome is wrong: on the paper ballots, B actually won by ${Math.abs(tm).toFixed(1)} points. A good audit should rarely confirm A.`;
+    }
+    $("sGoal").textContent = fmt(1 / state.alpha);
+    resetOne();
+    drawPlan();
+    clearMany();
+  }
+
+  // ------------------------------------------------------------------ one audit
+  let one = null, timer = null;
+  function newAudit() {
+    const pTrue = 0.5 + state.trueMargin / 200;
+    const W = Math.round(state.N * pTrue);
+    const sr = 0.5 + state.reportedMargin / 200;
+    return { s: sr, la: Math.log(2 * sr), lb: Math.log(2 * (1 - sr)), wRem: W, lRem: state.N - W, n: 0, a: 0, b: 0, logT: 0,
+             goal: Math.log(1 / state.alpha), cap: state.cap, path: [[0, 0]], tray: [], done: null };
+  }
+  function drawBallot(au) {
+    const rem = au.wRem + au.lRem;
+    const isA = Math.random() * rem < au.wRem;
+    if (isA) { au.wRem--; au.a++; au.logT += au.la; }
+    else { au.lRem--; au.b++; au.logT += au.lb; }
+    au.n++;
+    return isA;
+  }
+  function stepAudit(au, k) {
+    for (let i = 0; i < k && !au.done; i++) {
+      const isA = drawBallot(au);
+      au.tray.push(isA ? "A" : "B"); if (au.tray.length > 100) au.tray.shift();
+      if (au.n % Math.max(1, Math.floor(au.n / 400)) === 0) au.path.push([au.n, au.logT]);
+      if (au.logT >= au.goal) au.done = "confirmed";
+      else if (au.n >= au.cap) au.done = "full";
+    }
+    au.path.push([au.n, au.logT]);
+  }
+  function showOne() {
+    const au = one;
+    $("sDrawn").textContent = fmt(au.n);
+    $("sPct").textContent = (100 * au.n / state.N < 0.1 && au.n > 0) ? (100 * au.n / state.N).toFixed(3) + "%" : pct(au.n / state.N, 1);
+    $("sA").textContent = fmt(au.a); $("sB").textContent = fmt(au.b);
+    const T = Math.exp(au.logT);
+    $("sT").textContent = T >= 1000 ? fmt(T) : T >= 1 ? T.toFixed(2) : T.toPrecision(2);
+    const tray = $("tray"); tray.innerHTML = "";
+    for (let i = 0; i < 100; i++) { const sp = document.createElement("span"); const v = au.tray[i]; if (v) { sp.className = v; sp.textContent = v; } tray.appendChild(sp); }
+    const v = $("verdict");
+    if (au.done === "confirmed") {
+      const right = state.trueMargin > 0;
+      v.className = "verdict " + (right ? "ok" : "bad");
+      v.innerHTML = right
+        ? `Confirmed after ${fmt(au.n)} ballots. The reported winner (A) stands, with risk limit ${pct(state.alpha, 0)}.`
+        : `Confirmed after ${fmt(au.n)} ballots, but B actually won. This is the rare miss the risk limit allows (at most ${pct(state.alpha, 0)} of audits).`;
+    } else if (au.done === "full") {
+      v.className = "verdict full";
+      v.innerHTML = `No confirmation after ${fmt(au.n)} ballots: escalate to a full hand count. ` + (state.trueMargin > 0 ? "The hand count will confirm A." : "The hand count will show that B won.");
+    } else if (au.n > 0) {
+      v.className = "verdict"; v.textContent = "Sampling… the audit needs more evidence.";
+    } else { v.className = "verdict"; v.innerHTML = "Press <b>Draw ballots</b> to start the audit."; }
+    drawT();
+  }
+  function resetOne() { stopTimer(); one = newAudit(); showOne(); $("runOne").textContent = "Draw ballots"; }
+  function stopTimer() { if (timer) { cancelAnimationFrame(timer); timer = null; } }
+  function runOne() {
+    if (timer) { stopTimer(); $("runOne").textContent = "Continue"; return; }
+    if (one.done) one = newAudit();
+    const speed = +$("speed").value;
+    if (speed === 0) { stepAudit(one, 5e6); showOne(); return; }
+    $("runOne").textContent = "Pause";
+    let last = 0;
+    const tick = (ts) => {
+      const slow = speed === 1;
+      if (!slow || ts - last > 140) { stepAudit(one, speed); showOne(); last = ts; }
+      if (one.done) { timer = null; $("runOne").textContent = "Run another audit"; return; }
+      timer = requestAnimationFrame(tick);
+    };
+    timer = requestAnimationFrame(tick);
+  }
+
+  // ------------------------------------------------------------------ canvas helpers
+  function setupCanvas(cv) {
+    const r = cv.getBoundingClientRect(); const dpr = window.devicePixelRatio || 1;
+    const h = +cv.getAttribute("height");
+    cv.width = Math.max(300, r.width) * dpr; cv.height = h * dpr; cv.style.height = h + "px";
+    const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx, w: Math.max(300, r.width), h };
+  }
+  function axisText(ctx) { ctx.fillStyle = css("--muted"); ctx.font = `12px ${css("--font-mono") || "monospace"}`; }
+
+  function drawT() {
+    const { ctx, w, h } = setupCanvas($("tChart"));
+    const L = 56, R = 14, T0 = 14, B = 36; const pw = w - L - R, ph = h - T0 - B;
+    const au = one; const goal = au.goal;
+    const xs = au.path.map((p) => p[0]); const ys = au.path.map((p) => p[1]);
+    const xMax = Math.max(50, ...xs);
+    const yMin = Math.min(-goal * 0.6, ...ys) , yMax = Math.max(goal * 1.25, ...ys);
+    const X = (x) => L + pw * x / xMax, Y = (y) => T0 + ph * (1 - (y - yMin) / (yMax - yMin));
+    ctx.strokeStyle = css("--line"); ctx.lineWidth = 1;
+    axisText(ctx); ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    const ticks = [];
+    for (let e = -6; e <= 8; e++) { const v = Math.log(Math.pow(10, e)); if (v >= yMin && v <= yMax) ticks.push([v, e]); }
+    ticks.forEach(([v, e]) => { ctx.beginPath(); ctx.moveTo(L, Y(v)); ctx.lineTo(L + pw, Y(v)); ctx.stroke(); ctx.fillText(e >= 0 ? fmt(Math.pow(10, e)) : "1e" + e, L - 6, Y(v)); });
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    for (let i = 0; i <= 4; i++) { const x = xMax * i / 4; ctx.fillText(fmt(x), X(x), T0 + ph + 8); }
+    ctx.fillText("ballots drawn", L + pw / 2, T0 + ph + 22);
+    // goal line
+    ctx.strokeStyle = css("--good"); ctx.setLineDash([6, 4]); ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(L, Y(goal)); ctx.lineTo(L + pw, Y(goal)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = css("--good"); ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+    ctx.fillText(`confirm at T = ${fmt(1 / state.alpha)}`, L + 6, Y(goal) - 3);
+    // path
+    ctx.strokeStyle = css("--accent"); ctx.lineWidth = 2; ctx.beginPath();
+    au.path.forEach(([x, y], i) => (i ? ctx.lineTo(X(x), Y(y)) : ctx.moveTo(X(x), Y(y)))); ctx.stroke();
+    const lp = au.path[au.path.length - 1];
+    ctx.fillStyle = css("--accent"); ctx.beginPath(); ctx.arc(X(lp[0]), Y(lp[1]), 4, 0, 7); ctx.fill();
+    ctx.save(); ctx.translate(14, T0 + ph / 2); ctx.rotate(-Math.PI / 2); axisText(ctx); ctx.textAlign = "center"; ctx.fillText("test statistic T (log scale)", 0, 0); ctx.restore();
+  }
+
+  // ------------------------------------------------------------------ many audits
+  let manyRun = null;
+  function clearMany() {
+    if (manyRun) manyRun.cancel = true;
+    ["mConf", "mFull", "mMed", "m90"].forEach((id) => ($(id).textContent = "–"));
+    $("mCheck").textContent = ""; $("prog").style.width = "0";
+    $("manyNote").textContent = ""; $("runMany").disabled = false;
+    drawHist(null);
+  }
+  function runMany() {
+    clearMany();
+    const K = 1000; const results = []; const run = { cancel: false }; manyRun = run;
+    $("runMany").disabled = true;
+    let k = 0;
+    const budget = 4e6; // draws per slice
+    const slice = () => {
+      if (run.cancel) return;
+      let used = 0;
+      while (k < K && used < budget) {
+        const au = newAudit();
+        while (!au.done) {
+          drawBallot(au);
+          if (au.logT >= au.goal) au.done = "confirmed"; else if (au.n >= au.cap) au.done = "full";
+        }
+        used += au.n; results.push([au.n, au.done]); k++;
+      }
+      $("prog").style.width = (100 * k / K) + "%";
+      if (k < K) { setTimeout(slice, 0); return; }
+      $("runMany").disabled = false; summarize(results);
+    };
+    setTimeout(slice, 10);
+  }
+  function quantile(arr, q) { if (!arr.length) return NaN; const a = [...arr].sort((x, y) => x - y); return a[Math.min(a.length - 1, Math.floor(q * a.length))]; }
+  function summarize(res) {
+    const conf = res.filter((r) => r[1] === "confirmed"); const full = res.length - conf.length;
+    const all = res.map((r) => r[0]);
+    $("mConf").textContent = pct(conf.length / res.length);
+    $("mFull").textContent = pct(full / res.length);
+    $("mMed").textContent = fmt(quantile(all, 0.5));
+    $("m90").textContent = fmt(quantile(all, 0.9));
+    const chk = $("mCheck");
+    if (state.trueMargin <= 0) {
+      const miss = conf.length / res.length;
+      chk.className = "check " + (miss <= state.alpha ? "ok" : "bad");
+      chk.textContent = `The report was wrong. The audit confirmed the wrong winner in ${conf.length} of ${res.length} audits (${pct(miss)}), against a risk limit of ${pct(state.alpha, 0)}. Every other audit went to a full hand count, which found the true winner.`;
+    } else {
+      chk.className = "check ok";
+      chk.textContent = full === 0
+        ? `The report was right, and every audit confirmed it by sampling.`
+        : `The report was right. ${pct(conf.length / res.length)} of audits confirmed it by sampling; the other ${pct(full / res.length)} needed a full hand count, which also confirms A.`;
+    }
+    $("manyNote").textContent = `${fmt(res.length)} audits, ${fmt(state.N)} ballots each, risk limit ${pct(state.alpha, 0)}.`;
+    drawHist(res);
+  }
+  function drawHist(res) {
+    const { ctx, w, h } = setupCanvas($("hChart"));
+    const L = 50, R = 14, T0 = 12, B = 40; const pw = w - L - R, ph = h - T0 - B;
+    axisText(ctx);
+    if (!res) { ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("Run 1,000 audits to see the distribution.", w / 2, h / 2); return; }
+    const conf = res.filter((r) => r[1] === "confirmed").map((r) => r[0]); const full = res.length - conf.length;
+    const lo = 1, hi = state.cap; const nb = 18;
+    const edges = []; for (let i = 0; i <= nb; i++) edges.push(Math.exp(Math.log(lo) + (Math.log(hi) - Math.log(lo)) * i / nb));
+    const counts = new Array(nb).fill(0);
+    conf.forEach((n) => { let i = Math.floor(nb * Math.log(n) / Math.log(hi)); counts[Math.max(0, Math.min(nb - 1, i))]++; });
+    const bars = counts.concat(full ? [full] : []);
+    const maxC = Math.max(1, ...bars);
+    const bw = pw / (nb + 1.5);
+    ctx.strokeStyle = css("--line"); ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    for (let i = 0; i <= 4; i++) { const c = maxC * i / 4; const y = T0 + ph * (1 - c / maxC); ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(L + pw, y); ctx.stroke(); ctx.fillText(fmt(c), L - 6, y); }
+    counts.forEach((c, i) => { const x = L + i * bw; const y = T0 + ph * (1 - c / maxC); ctx.fillStyle = state.trueMargin > 0 ? css("--a") : css("--warn"); ctx.fillRect(x + 1, y, bw - 2, T0 + ph - y); });
+    if (full) { const x = L + (nb + 0.5) * bw; const y = T0 + ph * (1 - full / maxC); ctx.fillStyle = css("--accent"); ctx.fillRect(x, y, bw - 2, T0 + ph - y); }
+    axisText(ctx); ctx.textAlign = "center"; ctx.textBaseline = "top";
+    [0, 6, 12, 18].forEach((i) => ctx.fillText(fmt(edges[i]), L + i * bw, T0 + ph + 6));
+    if (full) ctx.fillText("full count", L + (nb + 1) * bw - 1, T0 + ph + 6);
+    ctx.fillText("ballots sampled when the audit stopped", L + pw / 2, T0 + ph + 22);
+  }
+
+  // ------------------------------------------------------------------ planning curve
+  const asn = (m, a) => { const s = 0.5 + m / 200; const kl = s * Math.log(2 * s) + (1 - s) * Math.log(2 * (1 - s)); return Math.log(1 / a) / kl; };
+  function drawPlan() {
+    const { ctx, w, h } = setupCanvas($("pChart"));
+    const L = 86, R = 18, T0 = 14, B = 40; const pw = w - L - R, ph = h - T0 - B;
+    const mLo = Math.log(0.5), mHi = Math.log(40); const yLo = 1, yHi = 7; // log10 ballots
+    const X = (m) => L + pw * (Math.log(m) - mLo) / (mHi - mLo);
+    const Y = (n) => T0 + ph * (1 - (Math.log10(n) - yLo) / (yHi - yLo));
+    axisText(ctx); ctx.strokeStyle = css("--line");
+    ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    for (let e = yLo; e <= yHi; e++) { ctx.beginPath(); ctx.moveTo(L, Y(10 ** e)); ctx.lineTo(L + pw, Y(10 ** e)); ctx.stroke(); ctx.fillText(fmt(10 ** e), L - 6, Y(10 ** e)); }
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    [0.5, 1, 2, 5, 10, 20, 40].forEach((m) => { ctx.beginPath(); ctx.moveTo(X(m), T0); ctx.lineTo(X(m), T0 + ph); ctx.stroke(); ctx.fillText(m + " pts", X(m), T0 + ph + 6); });
+    ctx.fillText("reported margin", L + pw / 2, T0 + ph + 22);
+    // N line
+    if (state.N <= 10 ** yHi) {
+      ctx.strokeStyle = css("--muted"); ctx.setLineDash([3, 4]); ctx.beginPath(); ctx.moveTo(L, Y(state.N)); ctx.lineTo(L + pw, Y(state.N)); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = css("--muted"); ctx.textAlign = "right"; ctx.textBaseline = "bottom"; ctx.fillText(`all ${fmt(state.N)} ballots`, L + pw - 4, Y(state.N) - 3);
+    }
+    const alphas = [0.2, 0.1, 0.05, 0.01];
+    alphas.forEach((a) => {
+      const cur = Math.abs(a - state.alpha) < 1e-9;
+      ctx.strokeStyle = cur ? css("--accent") : css("--line"); ctx.lineWidth = cur ? 2.5 : 1.5;
+      ctx.beginPath(); let first = true;
+      for (let i = 0; i <= 200; i++) { const m = Math.exp(mLo + (mHi - mLo) * i / 200); const n = Math.min(asn(m, a), 10 ** yHi); const x = X(m), y = Y(n); first ? ctx.moveTo(x, y) : ctx.lineTo(x, y); first = false; }
+      ctx.stroke();
+      if (cur) { ctx.fillStyle = css("--accent"); ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+        ctx.font = `600 12px ${css("--font-mono") || "monospace"}`; ctx.fillText(`risk limit ${pct(a, 0)}`, X(1.2), Y(asn(1.2, a)) - 6); }
+    });
+    ctx.lineWidth = 1;
+    const m = Math.max(0.5, Math.min(40, state.reportedMargin)); const n = asn(state.reportedMargin, state.alpha);
+    ctx.fillStyle = css("--b"); ctx.beginPath(); ctx.arc(X(m), Y(Math.min(n, 10 ** yHi)), 6, 0, 7); ctx.fill();
+    $("planNote").textContent = `Dark line: the current risk limit; lighter lines: 1%, 5%, 10% and 20%. At a ${state.reportedMargin.toFixed(1)}-point margin and a ${pct(state.alpha, 0)} risk limit, BRAVO expects about ${fmt(n)} ballots if the report is right` +
+      (n >= state.N ? `, more than the ${fmt(state.N)} ballots cast: a full hand count is the practical choice.` : `, which is ${(100 * n / state.N) < 0.1 ? (100 * n / state.N).toFixed(3) : (100 * n / state.N).toFixed(1)}% of the ${fmt(state.N)} ballots cast.`);
+  }
+
+  // ------------------------------------------------------------------ presets
+  const PRESETS = {
+    1: { m: 10, n: 5, a: "0.20", t: 10 }, 2: { m: 20, n: 5, a: "0.05", t: 20 }, 3: { m: 5, n: 4, a: "0.05", t: 5 },
+    4: { m: 4, n: 5, a: "0.10", t: -1 }, 5: { m: 10, n: 5, a: "0.05", t: 4 }, 6: { m: 0.5, n: 6, a: "0.05", t: 0.5 },
+  };
+  document.querySelectorAll("[data-preset]").forEach((b) => b.addEventListener("click", () => {
+    const p = PRESETS[b.dataset.preset];
+    $("margin").value = sliderFromMargin(p.m); $("nlog").value = p.n; $("alpha").value = p.a; $("truem").value = p.t;
+    read(); document.getElementById("settings").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  }));
+
+  // ------------------------------------------------------------------ wiring
+  $("margin").value = sliderFromMargin(10);
+  ["margin", "nlog", "alpha"].forEach((id) => $(id).addEventListener("input", () => {
+    if (id === "margin" && $("truem").dataset.linked !== "0") $("truem").value = marginFromSlider();
+    read();
+  }));
+  $("truem").addEventListener("input", () => { $("truem").dataset.linked = "0"; read(); });
+  $("cap").addEventListener("change", () => { state.cap = +$("cap").value; render(); });
+  $("matchBtn").addEventListener("click", () => { $("truem").value = marginFromSlider(); $("truem").dataset.linked = "1"; read(); });
+  $("wrongBtn").addEventListener("click", () => { $("truem").value = -1; $("truem").dataset.linked = "0"; read(); });
+  $("runOne").addEventListener("click", runOne);
+  $("stepOne").addEventListener("click", () => { stopTimer(); if (one.done) one = newAudit(); stepAudit(one, 1); showOne(); $("runOne").textContent = "Continue"; });
+  $("resetOne").addEventListener("click", resetOne);
+  $("runMany").addEventListener("click", runMany);
+  let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { drawT(); drawPlan(); drawHist(lastRes); }, 120); });
+  let lastRes = null; // last batch results, for redraw on resize
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { drawT(); drawPlan(); drawHist(lastRes); });
+  // patch summarize to remember results
+  const origDrawHist = drawHist;
+  drawHist = function (res) { lastRes = res; origDrawHist(res); };
+  read();
+})();
+</script>
+</body>
+</html>
