@@ -255,39 +255,24 @@ footer { color: var(--muted); font-size: 0.85rem; display: flex; flex-direction:
 
 <section class="section" aria-labelledby="exercises">
   <div class="section-head">
-    <h2 id="exercises">Exercises</h2>
-    <p>Use the buttons to load each setup, then run the audits. Write down what you see before opening the discussion note.</p>
+    <h2 id="exercises">In-class exercises (about 10 minutes)</h2>
+    <p>Press <b>Load setup</b>, then <b>Run 1,000 audits</b>. Write down the median ballots sampled each time. When you finish, return to the lecture video.</p>
   </div>
   <ol class="ex">
     <li><div>
-      <b>The risk limit.</b> With a 10-point margin and 100,000 ballots, run 1,000 audits at α = 20%, 10%, 5% and 1%. How does the median sample size change? Why does a stricter risk limit cost more ballots?
+      <b>Closeness.</b> Run 1,000 audits at a 10-point margin, then 5 points, then 2.5 points (risk limit 5%, 100,000 ballots). What happens to the median sample each time the margin is cut in half?
       <div><button class="ghost" type="button" data-preset="1">Load setup</button></div>
-      <details><summary>Discussion</summary><p>The audit stops when T reaches 1/α, so a stricter limit raises the bar from 5 to 100. Because each ballot moves T by a small multiplicative step, the sample grows with log(1/α): going from 10% to 1% roughly doubles the work, not tenfold.</p></details>
+      <details><summary>Check your answer</summary><p>Each halving of the margin roughly quadruples the sample: medians of about 450, then 1,800, then 7,500 ballots (your numbers will vary a little). Close contests need far more evidence, which is why very close races often go to a full hand count or recount.</p></details>
     </div></li>
     <li><div>
-      <b>Closeness.</b> Keep α = 5%. Compare margins of 20, 10, 5 and 2 points. What happens to the sample each time the margin is cut in half?
+      <b>Size of the election.</b> Keep a 5-point margin and a 5% risk limit. Run 1,000 audits with 10,000 ballots cast, then with 10,000,000. Compare the median samples.
       <div><button class="ghost" type="button" data-preset="2">Load setup</button></div>
-      <details><summary>Discussion</summary><p>Halving the margin roughly quadruples the expected sample. Each ballot carries less evidence when the race is close, so very close races need very large samples, and many escalate to a full hand count. That is one reason close races often go to recounts.</p></details>
+      <details><summary>Check your answer</summary><p>The median is about the same, roughly 1,800 ballots, whether 10,000 or 10 million were cast, just as a poll of 1,000 people works for a city or a country. That is a large share of a small election and a tiny share of a big one.</p></details>
     </div></li>
     <li><div>
-      <b>Number of ballots.</b> With a 5-point margin and α = 5%, compare 10,000 ballots with 10,000,000. Does the number of ballots sampled change much? What does change?
+      <b>A wrong outcome.</b> Officials reported that A won by 4 points, but on the paper ballots B actually won by 1. Run 1,000 audits at a 10% risk limit. How often did the audit confirm the wrong winner?
       <div><button class="ghost" type="button" data-preset="3">Load setup</button></div>
-      <details><summary>Discussion</summary><p>The sample needed is about the same (a few thousand ballots) whether 10,000 or 10 million were cast, just as a poll of 1,000 people works for a city or a country. What changes is the share: a few thousand ballots is a big slice of a small county and a tiny slice of a large state. Audits are cheap for big contests and comparatively expensive for small ones.</p></details>
-    </div></li>
-    <li><div>
-      <b>A wrong outcome.</b> Make the report wrong: officials announced A won by 4 points, but B actually won by 1. Run 1,000 audits at α = 10%, then at α = 5%. How often does the audit confirm the wrong winner?
-      <div><button class="ghost" type="button" data-preset="4">Load setup</button></div>
-      <details><summary>Discussion</summary><p>The audit should wrongly confirm at most α of the time, and usually far less. Almost every audit escalates to a full hand count, which corrects the outcome. This is the guarantee that gives the method its name: the risk of certifying a wrong winner is limited to α.</p></details>
-    </div></li>
-    <li><div>
-      <b>Right winner, smaller margin.</b> The report says A won by 10 points, but the paper shows A won by only 4 (for example, a tabulation error). The outcome is still right. How does the audit behave compared with exercise 2?
-      <div><button class="ghost" type="button" data-preset="5">Load setup</button></div>
-      <details><summary>Discussion</summary><p>The audit still confirms the right winner, but it needs more ballots than the reported margin would suggest, and some audits escalate. Ballot-polling audits are tuned to the reported margin; when the paper disagrees with the report, the evidence piles up more slowly.</p></details>
-    </div></li>
-    <li><div>
-      <b>Very close.</b> Set a 0.5-point margin with 1,000,000 ballots and α = 5%. Look at the planning chart and run a few single audits. What would you recommend to an election official?
-      <div><button class="ghost" type="button" data-preset="6">Load setup</button></div>
-      <details><summary>Discussion</summary><p>The expected sample is on the order of a hundred thousand ballots, and many audits escalate anyway. For margins this small, a full hand count (a recount) may be simpler. Ballot-comparison audits, which check each sampled paper ballot against its cast vote record, need far fewer ballots and are the usual answer for close contests.</p></details>
+      <details><summary>Check your answer</summary><p>Only a few percent of the time, and never more than the 10% risk limit. Nearly every audit escalated to a full hand count, which finds the true winner. That guarantee is what “risk-limiting” means.</p></details>
     </div></li>
   </ol>
 </section>
@@ -582,8 +567,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: flex; flex-direction:
 
   // ------------------------------------------------------------------ presets
   const PRESETS = {
-    1: { m: 10, n: 5, a: "0.20", t: 10 }, 2: { m: 20, n: 5, a: "0.05", t: 20 }, 3: { m: 5, n: 4, a: "0.05", t: 5 },
-    4: { m: 4, n: 5, a: "0.10", t: -1 }, 5: { m: 10, n: 5, a: "0.05", t: 4 }, 6: { m: 0.5, n: 6, a: "0.05", t: 0.5 },
+    1: { m: 10, n: 5, a: "0.05", t: 10 }, 2: { m: 5, n: 4, a: "0.05", t: 5 }, 3: { m: 4, n: 5, a: "0.10", t: -1 },
   };
   document.querySelectorAll("[data-preset]").forEach((b) => b.addEventListener("click", () => {
     const p = PRESETS[b.dataset.preset];
