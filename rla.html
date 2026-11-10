@@ -96,12 +96,12 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px s
 .verdict.ok { border-color: var(--good); color: var(--good); }
 .verdict.bad { border-color: var(--warn); color: var(--warn); }
 .verdict.full { border-color: var(--accent); color: var(--accent); }
-canvas { width: 100%; display: block; }
+canvas { display: block; max-width: 100%; }
 .chartbox { border: 1px solid var(--line); border-radius: 8px; padding: 8px; min-width: 0; }
 .caption { color: var(--muted); font-size: 0.84rem; }
 
 /* batch */
-.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
 .progress { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
 .progress > div { height: 100%; width: 0; background: var(--accent); transition: width 0.15s; }
 .check { font-weight: 600; }
@@ -219,7 +219,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: flex; flex-direction:
       </div>
       <div class="verdict" id="verdict">Press <b>Draw ballots</b> to start the audit.</div>
     </div>
-    <div class="chartbox"><canvas id="tChart" height="320" aria-label="Test statistic over ballots drawn"></canvas></div>
+    <div class="chartbox"><canvas id="tChart" height="280" aria-label="Test statistic over ballots drawn"></canvas></div>
   </div>
 </section>
 
@@ -240,7 +240,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: flex; flex-direction:
     <div class="stat"><span class="k">90th percentile</span><span class="v" id="m90">–</span></div>
   </div>
   <p class="check" id="mCheck" role="status"></p>
-  <div class="chartbox"><canvas id="hChart" height="260" aria-label="Distribution of ballots sampled across audits"></canvas></div>
+  <div class="chartbox"><canvas id="hChart" height="220" aria-label="Distribution of ballots sampled across audits"></canvas></div>
   <p class="caption">Bars show how many audits stopped at each sample size (log scale). The last bar, if present, counts audits that escalated to a full hand count.</p>
 </section>
 
@@ -249,7 +249,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: flex; flex-direction:
     <h2 id="plan">Planning: expected sample size</h2>
     <p>Before an audit, officials estimate the work. For BRAVO, the expected number of ballots depends on the margin and the risk limit, and hardly at all on how many ballots were cast. The dot marks the current setting.</p>
   </div>
-  <div class="chartbox"><canvas id="pChart" height="300" aria-label="Expected ballots needed by reported margin"></canvas></div>
+  <div class="chartbox"><canvas id="pChart" height="260" aria-label="Expected ballots needed by reported margin"></canvas></div>
   <p class="caption" id="planNote"></p>
 </section>
 
@@ -415,11 +415,16 @@ footer { color: var(--muted); font-size: 0.85rem; display: flex; flex-direction:
 
   // ------------------------------------------------------------------ canvas helpers
   function setupCanvas(cv) {
-    const r = cv.getBoundingClientRect(); const dpr = window.devicePixelRatio || 1;
-    const h = +cv.getAttribute("height");
-    cv.width = Math.max(300, r.width) * dpr; cv.height = h * dpr; cv.style.height = h + "px";
+    // Base height is read once from the markup and kept in data-h, so redraws never compound it.
+    if (!cv.dataset.h) cv.dataset.h = cv.getAttribute("height");
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.max(240, Math.floor(cv.parentElement.clientWidth - 16));
+    const base = +cv.dataset.h;
+    const h = Math.round(w < 560 ? base * 0.78 : base);
+    cv.style.width = w + "px"; cv.style.height = h + "px";
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
     const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    return { ctx, w: Math.max(300, r.width), h };
+    return { ctx, w, h };
   }
   function axisText(ctx) { ctx.fillStyle = css("--muted"); ctx.font = `12px ${css("--font-mono") || "monospace"}`; }
 
